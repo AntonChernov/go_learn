@@ -41,7 +41,7 @@ func logMiddleware(next http.Handler) http.Handler {
 		
 		log.Printf("%s - - [%s] %q %q %q",
 			addr,
-			time.Now().Format("02/Jan/2006:15:04:05 -0700"),
+			time.Now().Format("02/Jan/2006:15:04:05.99999 +0200"),
 			fmt.Sprintf("%s %s %s", r.Method, r.URL, r.Proto),
 			r.Referer(),
 			r.UserAgent())
