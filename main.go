@@ -19,11 +19,15 @@ import (
 
 	// utl "siteparser/utils"
 	sparsapi "siteparser/api"
+	utl "siteparser/utils"
 )
 
-// type TestsStruct struct {
-// 	URL       *string `json:"url"`
-// }
+type logWriter struct {
+}
+
+func (writer logWriter) Write(bytes []byte) (int, error) {
+	return fmt.Print(time.Now().UTC().Format("2006-01-02T15:04:05.999Z") + " [DEBUG] " + string(bytes))
+}
 
 func logMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -31,7 +35,7 @@ func logMiddleware(next http.Handler) http.Handler {
 
 		log.Printf("%s - - [%s] %q %q %q",
 			addr,
-			time.Now().Format("02/Jan/2006:15:04:05.999 +0200"),
+			time.Now().Format("2006-01-02T15:04:05Z07:00"),
 			fmt.Sprintf("%s %s %s", r.Method, r.URL, r.Proto),
 			r.Referer(),
 			r.UserAgent())
@@ -43,7 +47,11 @@ func logMiddleware(next http.Handler) http.Handler {
 }
 
 func main() {
-	var hostPort string = "127.0.0.1:8800"
+	log.SetFlags(0)
+	log.SetOutput(new(logWriter))
+
+	var hostPort string
+	hostPort = flag.String("hostport", "127.0.0.1:8800", "Host:port for start the server!")
 	var wait time.Duration
 	flag.DurationVar(&wait, "graceful-timeout", time.Second*15, "the duration for which the server gracefully wait for existing connections to finish - e.g. 15s or 1m")
 	flag.Parse()
@@ -54,9 +62,6 @@ func main() {
 	// routers here
 
 	router.Use(logMiddleware)
-	// db, err := utl.PostgressDBConnection()
-
-	// env := &Env{db: db}
 
 	hpGlVar := os.Getenv("SERVER")
 
@@ -97,22 +102,10 @@ func main() {
 	// Doesn't block if no connections, but will otherwise wait
 	// until the timeout deadline.
 	srv.Shutdown(ctx)
+	utl.DB.Close()
 	// Optionally, you could run srv.Shutdown in a goroutine and block on
 	// <-ctx.Done() if your application should wait for other services
 	// to finalize based on context cancellation.
 	log.Println("shutting down")
 	os.Exit(0)
-
-	// router.HandleFunc("/", HelloHandler).Methods("GET").Name("testing")
-	// http.Handle("/", router)
-	// fmt.Println(http.ListenAndServe(hostPort, nil))
-
 }
-
-// func MainPage(w http.ResponseWriter, r *http.Request){
-
-// }
-
-// func HelloJson struct{
-
-// }
