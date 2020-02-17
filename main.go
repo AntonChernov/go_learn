@@ -51,7 +51,11 @@ func main() {
 	log.SetOutput(new(logWriter))
 
 	var hostPort string
-	hostPort = flag.String("hostport", "127.0.0.1:8800", "Host:port for start the server!")
+	// Add all CLI arguments after this comment and before flag.Parse()
+
+	hostPortCLI := flag.String("hostport", "127.0.0.1:8800", "Host:port for start the server!")
+	flag.Parse()
+
 	var wait time.Duration
 	flag.DurationVar(&wait, "graceful-timeout", time.Second*15, "the duration for which the server gracefully wait for existing connections to finish - e.g. 15s or 1m")
 	flag.Parse()
@@ -67,6 +71,8 @@ func main() {
 
 	if hpGlVar != "" {
 		hostPort = hpGlVar
+	} else {
+		hostPort = *hostPortCLI
 	}
 
 	log.Printf("Servers started at: %v", hostPort)
