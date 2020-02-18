@@ -18,8 +18,8 @@ import (
 	// "github.com/mattn/go-sqlite3"
 
 	// utl "siteparser/utils"
-	sparsapi "siteparser/api"
-	utl "siteparser/utils"
+	sparsapi "go_learn/api"
+	utl "go_learn/utils"
 )
 
 type logWriter struct {
