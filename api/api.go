@@ -3,9 +3,9 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	utl "go_learn/utils"
 	"log"
 	"net/http"
-	utl "siteparser/utils"
 	"strconv"
 	"time"
 )
