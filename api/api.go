@@ -100,8 +100,8 @@ type StructCreateNewUser struct {
 }
 
 //DetailUserDataStruct detail user data
-type DetailUserDataStruct struct {
-	ID             int       `json:"id"`
+type DetailUserDataJSONStruct struct {
+	ID             uint8     `json:"id"`
 	IsSuperuser    bool      `json:"is_superuser"`
 	Email          string    `json:"email"`
 	Phone          string    `json:"phone"`
@@ -111,6 +111,21 @@ type DetailUserDataStruct struct {
 	DateUpdate     time.Time `json:"date_update"`
 	EmailConfirm   bool      `json:"email_confirm"`
 	AgentsIsActive bool      `json:"agents_is_active"`
+	LastLogin      string    `json:"last_login"`
+}
+
+type DetailUserDataDBStruct struct {
+	ID             int64     `sql:"id"`
+	IsSuperuser    bool      `sql:"is_superuser"`
+	Email          string    `sql:"email"`
+	Phone          string    `sql:"phone"`
+	IsStaff        bool      `sql:"is_staff"`
+	IsActive       bool      `sql:"is_active"`
+	DateJoined     time.Time `sql:"date_joined"`
+	DateUpdate     time.Time `sql:"date_update"`
+	EmailConfirm   bool      `sql:"email_confirm"`
+	AgentsIsActive bool      `sql:"agents_is_active"`
+	LastLogin      string    `sql:"last_login"`
 }
 
 //GetDetailUsersData get detail data for all users
@@ -126,26 +141,37 @@ func GetDetailUsersData(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Println("LIMIT", limit)
 	log.Println("OFFSET", offset)
+	//SELECT (email, phone, is_active, date_joined, date_update, phone, is_staff, email_confirm, agents_is_active, last_login)
 	query := `
-	SELECT (id, email, phone, is_active, date_joined, date_updated)
+	SELECT id, email, phone, is_active, date_joined, date_update, phone, is_staff, email_confirm, agents_is_active, last_login
 	FROM authenticate_customuser
 	LIMIT $1 
-	OFFSET $1 
+	OFFSET $2 
 	`
+	usersArray := make([]*DetailUserDataJSONStruct, 0)
 
 	data, err := utl.DB.Query(query, limit, offset)
-
-	for data.Next() {
-
-	}
-
+	defer data.Close()
 	if err != nil {
-		log.Println("Error", err)
-	} else {
-		w.Header().Set("Content-Type", "application/json")
-
-		json.NewEncoder(w).Encode(data)
+		log.Println("DB connection lost!", err)
+		http.Error(w, "DB connection lost!", 400)
 	}
+	//List of users use deklared structure
+	for data.Next() {
+		obj := new(DetailUserDataJSONStruct)
+		err := data.Scan(&obj.ID, &obj.Email, &obj.Phone, &obj.IsActive, &obj.DateJoined, &obj.DateUpdate, &obj.Phone, &obj.IsStaff, &obj.EmailConfirm, &obj.AgentsIsActive, &obj.LastLogin)
+		// obj := new(DetailUserDataDBStruct)
+		// err := data.Scan(&obj)
+		if err != nil {
+			log.Println("Error", err)
+			http.Error(w, "Can not get data from DB!", 400)
+			return
+		}
+		usersArray = append(usersArray, obj)
+	}
+	w.Header().Set("Content-Type", "application/json")
+
+	json.NewEncoder(w).Encode(usersArray)
 }
 
 //CreateNewUser Create a new user
