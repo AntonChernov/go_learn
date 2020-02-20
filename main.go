@@ -64,6 +64,7 @@ func main() {
 	router.HandleFunc("/test/", sparsapi.TestRequestHandler).Methods("GET").Name("testHandler")
 	router.HandleFunc("/test-db/", sparsapi.GetUserEmails).Methods("GET").Name("listuseremails")
 	router.HandleFunc("/users-list/", sparsapi.GetDetailUsersData).Methods("GET").Name("userslist")
+	router.HandleFunc("/create-user/", sparsapi.CreateNewUser).Methods("POST").Name("createuser")
 	// routers here
 
 	router.Use(logMiddleware)
