@@ -28,14 +28,7 @@ type AllUsersEmailsList struct {
 
 //GetUserEmails Test and get data from postgresql DB
 func GetUserEmails(w http.ResponseWriter, r *http.Request) {
-	// db := utl.DB
 	log.Println("ID:", &utl.DB)
-	// if err != nil {
-	// 	log.Println("No connection to db! Error:", err)
-	// } else {
-	// 	log.Println("Get DB connection!")
-	// 	// log.Println("ID:", *db)
-	// }
 	emailsArray := make([]string, 0)
 	limit, lerr := strconv.Atoi(r.FormValue("limit"))
 	offset, oerr := strconv.Atoi(r.FormValue("offset"))
@@ -87,16 +80,17 @@ func GetUserEmails(w http.ResponseWriter, r *http.Request) {
 
 //StructCreateNewUser New use structure
 type StructCreateNewUser struct {
-	Password       string    `json:"password"`
-	IsSuperuser    bool      `json:"is_superuser"`
-	Email          string    `json:"email"`
-	Phone          string    `json:"phone"`
-	IsStaff        bool      `json:"is_staff"`
-	IsActive       bool      `json:"is_active"`
-	DateJoined     time.Time `json:"date_joined"`
-	DateUpdate     time.Time `json:"date_update"`
-	EmailConfirm   bool      `json:"email_confirm"`
-	AgentsIsActive bool      `json:"agents_is_active"`
+	Password       string `json:"password"`
+	IsSuperuser    bool   `json:"is_superuser"`
+	Email          string `json:"email"`
+	Phone          string `json:"phone"`
+	IsStaff        bool   `json:"is_staff"`
+	IsActive       bool   `json:"is_active"`
+	DateJoined     string `json:"date_joined"`
+	DateUpdate     string `json:"date_update"`
+	EmailConfirm   bool   `json:"email_confirm"`
+	AgentsIsActive bool   `json:"agents_is_active"`
+	LastLogin      string `json:"last_login"`
 }
 
 //DetailUserDataStruct detail user data
@@ -111,12 +105,12 @@ type DetailUserDataJSONStruct struct {
 	DateUpdate     time.Time `json:"date_update"`
 	EmailConfirm   bool      `json:"email_confirm"`
 	AgentsIsActive bool      `json:"agents_is_active"`
-	LastLogin      string    `json:"last_login"`
+	LastLogin      time.Time `json:"last_login"`
 }
 
 type DetailUserDataDBStruct struct {
-	ID             int64     `sql:"id"`
-	IsSuperuser    bool      `sql:"is_superuser"`
+	ID int64 `sql:"id"`
+	// IsSuperuser    bool      `sql:"is_superuser"`
 	Email          string    `sql:"email"`
 	Phone          string    `sql:"phone"`
 	IsStaff        bool      `sql:"is_staff"`
@@ -130,7 +124,7 @@ type DetailUserDataDBStruct struct {
 
 //GetDetailUsersData get detail data for all users
 func GetDetailUsersData(w http.ResponseWriter, r *http.Request) {
-
+	// Need create a Middlevar or something licke this bad way to use code duplication!!!
 	limit, lerr := strconv.Atoi(r.FormValue("limit"))
 	offset, oerr := strconv.Atoi(r.FormValue("offset"))
 	if lerr != nil {
@@ -143,7 +137,7 @@ func GetDetailUsersData(w http.ResponseWriter, r *http.Request) {
 	log.Println("OFFSET", offset)
 	//SELECT (email, phone, is_active, date_joined, date_update, phone, is_staff, email_confirm, agents_is_active, last_login)
 	query := `
-	SELECT id, email, phone, is_active, date_joined, date_update, phone, is_staff, email_confirm, agents_is_active, last_login
+	SELECT id, email, phone, is_active, date_joined, date_update, is_staff, email_confirm, agents_is_active, last_login
 	FROM authenticate_customuser
 	LIMIT $1 
 	OFFSET $2 
@@ -159,7 +153,7 @@ func GetDetailUsersData(w http.ResponseWriter, r *http.Request) {
 	//List of users use deklared structure
 	for data.Next() {
 		obj := new(DetailUserDataJSONStruct)
-		err := data.Scan(&obj.ID, &obj.Email, &obj.Phone, &obj.IsActive, &obj.DateJoined, &obj.DateUpdate, &obj.Phone, &obj.IsStaff, &obj.EmailConfirm, &obj.AgentsIsActive, &obj.LastLogin)
+		err := data.Scan(&obj.ID, &obj.Email, &obj.Phone, &obj.IsActive, &obj.DateJoined, &obj.DateUpdate, &obj.IsStaff, &obj.EmailConfirm, &obj.AgentsIsActive, &obj.LastLogin)
 		// obj := new(DetailUserDataDBStruct)
 		// err := data.Scan(&obj)
 		if err != nil {
@@ -174,20 +168,41 @@ func GetDetailUsersData(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(usersArray)
 }
 
-//CreateNewUser Create a new user
-// func CreateNewUser(w http.ResponseWriter, r *http.Request) {
-
-// 	// READ data from request must be added!!!
-
-// 	query := `
-// 		INSERT INTO authenticate_customuser ()
-// 		VALUES authenticate_customuser
-// 	`
-// 	data, err := utl.DB.Exeq(query)
-// 	if err != nil {
-// 		log.Println("Error", err)
-// 	} else {
-// 		log.Println("Log data", data)
-// 	}
-
+// //StructCreateNewUser create new user
+// type StructCreateNewUser struct {
+// 	Email string `json:"email"`
+// 	Phone string `json:"phone"`
 // }
+
+//CreateNewUser Create a new user
+func CreateNewUser(w http.ResponseWriter, r *http.Request) {
+
+	// READ data from request must be added!!!
+
+	query := `
+		INSERT INTO authenticate_customuser(email, phone, password, is_active, date_joined, date_update, is_staff, email_confirm, agents_is_active, last_login, is_superuser)
+		VALUES ($1,$2,$3, $4, $5, $6, $7, $8, $9, $10, $11)
+	`
+
+	decoder := json.NewDecoder(r.Body)
+	var user StructCreateNewUser
+	err := decoder.Decode(&user)
+	if err != nil {
+		panic(err)
+	}
+	log.Println(&user)
+
+	data, err := utl.DB.Exec(query, &user.Email, &user.Phone, &user.Password, &user.IsActive, time.Now().Format(time.RFC3339),
+		time.Now().Format(time.RFC3339), &user.IsStaff, &user.EmailConfirm, &user.AgentsIsActive, time.Now().Format(time.RFC3339), &user.IsSuperuser)
+	// data := utl.DB.QueryRow(query, (&user.Email, &user.Phone, &user.Password, &user.IsActive, time.Now().Format(time.RFC3339),
+	// 	time.Now().Format(time.RFC3339), &user.IsStaff, &user.EmailConfirm, &user.AgentsIsActive, time.Now().Format(time.RFC3339), &user.IsSuperuser)).Scan(&id)
+	if err != nil {
+		log.Println("Error", err)
+	} else {
+		log.Println("Log data", data)
+		w.Header().Set("Content-Type", "application/json")
+
+		json.NewEncoder(w).Encode(&user)
+	}
+
+}
