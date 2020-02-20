@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/gorilla/mux"
 )
 
 //HelloHandler just example
@@ -55,7 +57,7 @@ func GetUserEmails(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Println("Db Query error: ", err)
-		http.Error(w, "Can not get Db data!", 400)
+		utl.JSONError(w, "Can not get Db data!", 400, false)
 	} else {
 
 		for data.Next() {
@@ -108,20 +110,6 @@ type DetailUserDataJSONStruct struct {
 	LastLogin      time.Time `json:"last_login"`
 }
 
-type DetailUserDataDBStruct struct {
-	ID int64 `sql:"id"`
-	// IsSuperuser    bool      `sql:"is_superuser"`
-	Email          string    `sql:"email"`
-	Phone          string    `sql:"phone"`
-	IsStaff        bool      `sql:"is_staff"`
-	IsActive       bool      `sql:"is_active"`
-	DateJoined     time.Time `sql:"date_joined"`
-	DateUpdate     time.Time `sql:"date_update"`
-	EmailConfirm   bool      `sql:"email_confirm"`
-	AgentsIsActive bool      `sql:"agents_is_active"`
-	LastLogin      string    `sql:"last_login"`
-}
-
 //GetDetailUsersData get detail data for all users
 func GetDetailUsersData(w http.ResponseWriter, r *http.Request) {
 	// Need create a Middlevar or something licke this bad way to use code duplication!!!
@@ -135,10 +123,12 @@ func GetDetailUsersData(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Println("LIMIT", limit)
 	log.Println("OFFSET", offset)
-	//SELECT (email, phone, is_active, date_joined, date_update, phone, is_staff, email_confirm, agents_is_active, last_login)
+
 	query := `
 	SELECT id, email, phone, is_active, date_joined, date_update, is_staff, email_confirm, agents_is_active, last_login
 	FROM authenticate_customuser
+	ORDER BY 
+	   id DESC
 	LIMIT $1 
 	OFFSET $2 
 	`
@@ -148,17 +138,16 @@ func GetDetailUsersData(w http.ResponseWriter, r *http.Request) {
 	defer data.Close()
 	if err != nil {
 		log.Println("DB connection lost!", err)
-		http.Error(w, "DB connection lost!", 400)
+		utl.JSONError(w, "DB connection lost!", 400, false)
 	}
 	//List of users use deklared structure
 	for data.Next() {
 		obj := new(DetailUserDataJSONStruct)
 		err := data.Scan(&obj.ID, &obj.Email, &obj.Phone, &obj.IsActive, &obj.DateJoined, &obj.DateUpdate, &obj.IsStaff, &obj.EmailConfirm, &obj.AgentsIsActive, &obj.LastLogin)
-		// obj := new(DetailUserDataDBStruct)
-		// err := data.Scan(&obj)
+
 		if err != nil {
 			log.Println("Error", err)
-			http.Error(w, "Can not get data from DB!", 400)
+			utl.JSONError(w, "Can not get data from DB!", 400, false)
 			return
 		}
 		usersArray = append(usersArray, obj)
@@ -168,41 +157,121 @@ func GetDetailUsersData(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(usersArray)
 }
 
-// //StructCreateNewUser create new user
-// type StructCreateNewUser struct {
-// 	Email string `json:"email"`
-// 	Phone string `json:"phone"`
-// }
-
 //CreateNewUser Create a new user
 func CreateNewUser(w http.ResponseWriter, r *http.Request) {
-
-	// READ data from request must be added!!!
 
 	query := `
 		INSERT INTO authenticate_customuser(email, phone, password, is_active, date_joined, date_update, is_staff, email_confirm, agents_is_active, last_login, is_superuser)
 		VALUES ($1,$2,$3, $4, $5, $6, $7, $8, $9, $10, $11)
+		RETURNING id, email, phone, is_active, date_joined, date_update, is_staff, email_confirm, agents_is_active, last_login
 	`
 
 	decoder := json.NewDecoder(r.Body)
 	var user StructCreateNewUser
 	err := decoder.Decode(&user)
+	obj := new(DetailUserDataJSONStruct) //user object
 	if err != nil {
 		panic(err)
 	}
 	log.Println(&user)
 
-	data, err := utl.DB.Exec(query, &user.Email, &user.Phone, &user.Password, &user.IsActive, time.Now().Format(time.RFC3339),
-		time.Now().Format(time.RFC3339), &user.IsStaff, &user.EmailConfirm, &user.AgentsIsActive, time.Now().Format(time.RFC3339), &user.IsSuperuser)
-	// data := utl.DB.QueryRow(query, (&user.Email, &user.Phone, &user.Password, &user.IsActive, time.Now().Format(time.RFC3339),
-	// 	time.Now().Format(time.RFC3339), &user.IsStaff, &user.EmailConfirm, &user.AgentsIsActive, time.Now().Format(time.RFC3339), &user.IsSuperuser)).Scan(&id)
-	if err != nil {
+	data := utl.DB.QueryRow(
+		query, &user.Email, &user.Phone, &user.Password, &user.IsActive, time.Now().Format(time.RFC3339),
+		time.Now().Format(time.RFC3339), &user.IsStaff, &user.EmailConfirm, &user.AgentsIsActive,
+		time.Now().Format(time.RFC3339), &user.IsSuperuser).Scan(&obj.ID, &obj.Email, &obj.Phone, &obj.IsActive,
+		&obj.DateJoined, &obj.DateUpdate, &user.IsStaff, &user.EmailConfirm, &obj.AgentsIsActive, &obj.LastLogin) //create user obj and return fields related to this instance
+
+	if data != nil {
 		log.Println("Error", err)
 	} else {
-		log.Println("Log data", data)
+		log.Println("Log data", &obj)
 		w.Header().Set("Content-Type", "application/json")
 
-		json.NewEncoder(w).Encode(&user)
+		json.NewEncoder(w).Encode(&obj)
+	}
+
+}
+
+//UpdatePhoneEmailStruct struct for update email and phone for some user
+type UpdatePhoneEmailStruct struct {
+	Phone string `json:"phone"`
+	Email string `json:"email"`
+}
+
+func UpdateUserView(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	userId := params["id"]
+
+	decoder := json.NewDecoder(r.Body)
+	var user UpdatePhoneEmailStruct
+	err := decoder.Decode(&user)
+
+	query := `
+		UPDATE authenticate_customuser
+		SET phone = $2, email = $3
+		WHERE id=$1
+		RETURNING id, email, phone, is_active, date_joined, date_update, is_staff, email_confirm, agents_is_active, last_login
+	`
+	// log.Println(&user)
+	data, err := utl.DB.Query(query, &userId, &user.Phone, &user.Email)
+	defer data.Close()
+	if err != nil {
+		log.Panic(err)
+		// log.Error("Error", err)
+		utl.JSONError(w, "DB error", 400, false)
+	} else {
+		obj := new(DetailUserDataJSONStruct)
+		for data.Next() {
+
+			err := data.Scan(&obj.ID, &obj.Email, &obj.Phone, &obj.IsActive, &obj.DateJoined, &obj.DateUpdate, &obj.IsStaff, &obj.EmailConfirm, &obj.AgentsIsActive, &obj.LastLogin)
+
+			if err != nil {
+				log.Println("Error", err)
+				utl.JSONError(w, "Can not get data from DB!", 400, false)
+				return
+			}
+
+		}
+		w.Header().Set("Content-Type", "application/json")
+
+		json.NewEncoder(w).Encode(&obj)
+	}
+
+}
+
+func DeleteUserView(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	userId := params["id"]
+	log.Printf("Type ID %T", userId)
+	// queryCheckUserExist := `
+	// SELECT
+	// EXISTS (SELECT 1 FROM authenticate_customuser WHERE id = $1)
+	// `
+	queryCheckUserExist := `
+	SELECT id 
+	FROM authenticate_customuser 
+	WHERE id = $1
+	`
+	var id int
+	err := utl.DB.QueryRow(queryCheckUserExist, userId).Scan(&id)
+	log.Println(err)
+
+	if err != nil {
+		log.Println(err)
+		utl.JSONError(w, "User Does Not Exist!", 400, false) // TODO Create own error for return JSON with Error text for front end devs!!! DONE utils/errorutils
+		// return
+	} else {
+		query := `
+		DELETE FROM authenticate_customuser
+		WHERE id = $1
+		`
+		_, derr := utl.DB.Query(query, userId) // finde a way how to resolve not exist user deletion!!!
+		if derr != nil {
+			log.Panic(derr)
+		} else {
+			utl.JSONError(w, "User succesfulli deleted!", 200, true)
+			// return
+		}
 	}
 
 }
