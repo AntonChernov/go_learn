@@ -198,6 +198,7 @@ type UpdatePhoneEmailStruct struct {
 	Email string `json:"email"`
 }
 
+//UpdateUserView Update phone and email action for user
 func UpdateUserView(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	userId := params["id"]
@@ -239,6 +240,7 @@ func UpdateUserView(w http.ResponseWriter, r *http.Request) {
 
 }
 
+//DeleteUserView Delate action for user
 func DeleteUserView(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	userId := params["id"]
