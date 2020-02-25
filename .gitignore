@@ -15,4 +15,4 @@
 vendor/
 
 # Ignore txt files such as cover.txt
-.txt
+*.txt
