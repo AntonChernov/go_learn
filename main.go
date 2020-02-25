@@ -15,7 +15,7 @@ import (
 
 	"github.com/gorilla/mux"
 
-	sparsapi "go_learn/api"
+	api "go_learn/api"
 	utl "go_learn/utils"
 )
 
@@ -58,13 +58,13 @@ func main() {
 	flag.Parse()
 	// routers here
 	router := mux.NewRouter()
-	router.HandleFunc("/", sparsapi.HelloHandler).Methods("GET").Name("testing")
-	router.HandleFunc("/test/", sparsapi.TestRequestHandler).Methods("GET").Name("testHandler")
-	router.HandleFunc("/test-db/", sparsapi.GetUserEmails).Methods("GET").Name("listuseremails")
-	router.HandleFunc("/users-list/", sparsapi.GetDetailUsersData).Methods("GET").Name("userslist")
-	router.HandleFunc("/create-user/", sparsapi.CreateNewUser).Methods("POST").Name("createuser")
-	router.HandleFunc("/update-user/{id}", sparsapi.UpdateUserView).Methods("PATCH").Name("updateuser")
-	router.HandleFunc("/delete-user/{id}", sparsapi.DeleteUserView).Methods("POST").Name("updateuser")
+	router.HandleFunc("/", api.HelloHandler).Methods("GET").Name("testing")
+	router.HandleFunc("/test/", api.TestRequestHandler).Methods("GET").Name("testHandler")
+	router.HandleFunc("/test-db/", api.GetUserEmails).Methods("GET").Name("listuseremails")
+	router.HandleFunc("/users-list/", api.GetDetailUsersData).Methods("GET").Name("userslist")
+	router.HandleFunc("/create-user/", api.CreateNewUser).Methods("POST").Name("createuser")
+	router.HandleFunc("/update-user/{id}", api.UpdateUserView).Methods("PATCH").Name("updateuser")
+	router.HandleFunc("/delete-user/{id}", api.DeleteUserView).Methods("POST").Name("updateuser")
 
 	router.Use(logMiddleware)
 

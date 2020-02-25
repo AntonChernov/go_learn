@@ -16,18 +16,29 @@ type JSONSucessStruct struct {
 	Sucess []string `json:"sucess"`
 }
 
-func JSONError(w http.ResponseWriter, errormsg string, stuscode int, sucess bool) {
+func JSONError(w http.ResponseWriter, errormsg string, stauscode int, sucess bool) {
 	errorList := make([]string, 0)
 
 	errorList = append(errorList, errormsg)
 	var res interface{}
-	if sucess != true {
+
+	w.Header().Set("Content-Type", "application/json")
+
+	switch {
+	case sucess != true && stauscode != 0:
 		res = JSONErrorStruct{errorList}
-	} else {
+		w.WriteHeader(stauscode)
+		log.Println(errormsg)
+	// Next case it is for future now this case not usable
+	case sucess != true && stauscode == 0:
+		res = JSONErrorStruct{errorList}
+		w.WriteHeader(400)
+		log.Println(errormsg)
+	default:
+		w.WriteHeader(200)
+		log.Println(errormsg)
 		res = JSONSucessStruct{errorList}
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(stuscode)
-	log.Println(errormsg)
+
 	json.NewEncoder(w).Encode(&res)
 }

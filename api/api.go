@@ -171,7 +171,9 @@ func CreateNewUser(w http.ResponseWriter, r *http.Request) {
 	err := decoder.Decode(&user)
 	obj := new(DetailUserDataJSONStruct) //user object
 	if err != nil {
-		panic(err)
+		log.Println(err)
+		utl.JSONError(w, "Structure of income JSON invalid!", 400, false)
+		return
 	}
 	log.Println(&user)
 
@@ -244,6 +246,7 @@ func UpdateUserView(w http.ResponseWriter, r *http.Request) {
 func DeleteUserView(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	userId := params["id"]
+	fmt.Printf("Type ID %T", userId)
 	log.Printf("Type ID %T", userId)
 	// queryCheckUserExist := `
 	// SELECT
@@ -261,7 +264,7 @@ func DeleteUserView(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println(err)
 		utl.JSONError(w, "User Does Not Exist!", 400, false) // TODO Create own error for return JSON with Error text for front end devs!!! DONE utils/errorutils
-		// return
+		return
 	} else {
 		query := `
 		DELETE FROM authenticate_customuser
