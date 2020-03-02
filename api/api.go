@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	validate "github.com/gookit/validate"
 	"github.com/gorilla/mux"
 )
 
@@ -82,17 +83,49 @@ func GetUserEmails(w http.ResponseWriter, r *http.Request) {
 
 //StructCreateNewUser New use structure
 type StructCreateNewUser struct {
-	Password       string `json:"password"`
-	IsSuperuser    bool   `json:"is_superuser"`
-	Email          string `json:"email"`
-	Phone          string `json:"phone"`
-	IsStaff        bool   `json:"is_staff"`
-	IsActive       bool   `json:"is_active"`
-	DateJoined     string `json:"date_joined"`
-	DateUpdate     string `json:"date_update"`
-	EmailConfirm   bool   `json:"email_confirm"`
-	AgentsIsActive bool   `json:"agents_is_active"`
-	LastLogin      string `json:"last_login"`
+	Password       string `json:"password" validate:"required|minLen:7"`
+	IsSuperuser    bool   `json:"is_superuser" validate:"bool"`
+	Email          string `json:"email" validate:"required|email|CustomEmailExistValidator"`
+	Phone          string `json:"phone" validate:"required|minLen:10|maxLen:12"`
+	IsStaff        bool   `json:"is_staff" validate:"bool"`
+	IsActive       bool   `json:"is_active" validate:"bool"`
+	DateJoined     string `json:"date_joined" validate:"required"`
+	DateUpdate     string `json:"date_update" validate:"required"`
+	EmailConfirm   bool   `json:"email_confirm" validate:"bool"`
+	AgentsIsActive bool   `json:"agents_is_active" validate:"bool"`
+	LastLogin      string `json:"last_login" validate:"rquired"`
+}
+
+// CustomEmailExistValidator Validate the user with email exist or not
+func (f StructCreateNewUser) CustomEmailExistValidator(val string) bool {
+	query := `
+		SELECT email
+		FROM authenticate_customuser
+		WHERE email == $1 
+	`
+
+	_, err := utl.DB.Query(query, val)
+	// defer data.Close()
+	if err != nil {
+		return false
+	} else {
+		return true
+	}
+}
+
+// Custom message if user allready exist
+func (f StructCreateNewUser) Messages() map[string]string {
+	return validate.MS{
+		"CustomEmailExistValidator":       "",
+		"Email.CustomEmailExistValidator": "User with this email allready exist!",
+	}
+}
+
+// Translates you can custom field translates.
+func (f StructCreateNewUser) Translates() map[string]string {
+	return validate.MS{
+		"Email.CustomEmailExistValidator": "Email",
+	}
 }
 
 //DetailUserDataStruct detail user data
@@ -170,26 +203,36 @@ func CreateNewUser(w http.ResponseWriter, r *http.Request) {
 	var user StructCreateNewUser
 	err := decoder.Decode(&user)
 	obj := new(DetailUserDataJSONStruct) //user object
-	if err != nil {
-		log.Println(err)
-		utl.JSONError(w, "Structure of income JSON invalid!", 400, false)
-		return
-	}
-	log.Println(&user)
+	// if err != nil {
+	// 	log.Println(err)
+	// 	utl.JSONError(w, "Structure of income JSON invalid!", 400, false)
+	// 	return
+	// }
+	v := validate.Struct(user)
+	if v.Validate() {
+		log.Println(&user)
 
-	data := utl.DB.QueryRow(
-		query, &user.Email, &user.Phone, &user.Password, &user.IsActive, time.Now().Format(time.RFC3339),
-		time.Now().Format(time.RFC3339), &user.IsStaff, &user.EmailConfirm, &user.AgentsIsActive,
-		time.Now().Format(time.RFC3339), &user.IsSuperuser).Scan(&obj.ID, &obj.Email, &obj.Phone, &obj.IsActive,
-		&obj.DateJoined, &obj.DateUpdate, &user.IsStaff, &user.EmailConfirm, &obj.AgentsIsActive, &obj.LastLogin) //create user obj and return fields related to this instance
+		data := utl.DB.QueryRow(
+			query, &user.Email, &user.Phone, &user.Password, &user.IsActive, time.Now().Format(time.RFC3339),
+			time.Now().Format(time.RFC3339), &user.IsStaff, &user.EmailConfirm, &user.AgentsIsActive,
+			time.Now().Format(time.RFC3339), &user.IsSuperuser).Scan(&obj.ID, &obj.Email, &obj.Phone, &obj.IsActive,
+			&obj.DateJoined, &obj.DateUpdate, &user.IsStaff, &user.EmailConfirm, &obj.AgentsIsActive, &obj.LastLogin) //create user obj and return fields related to this instance
 
-	if data != nil {
-		log.Println("Error", err)
+		if data != nil {
+			log.Println("Error", err)
+		} else {
+			log.Println("Log data", &obj)
+			w.Header().Set("Content-Type", "application/json")
+
+			json.NewEncoder(w).Encode(&obj)
+			return
+		}
+		// w.Header().Set("Content-Type", "application/json")
+		// json.NewEncoder(w).Encode()
 	} else {
-		log.Println("Log data", &obj)
 		w.Header().Set("Content-Type", "application/json")
-
-		json.NewEncoder(w).Encode(&obj)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(v.Errors)
 	}
 
 }
