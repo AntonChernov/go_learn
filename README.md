@@ -14,7 +14,7 @@ go mod vendor --> isolate env it means all packages will be installed in project
 NOTE add vendor dir to .gitignore before use command!
 
 ## Run server (Server no blocking operations! Use channels and goroutines.)
-go tun main.go --> server start at 127.0.0.1:8800 
+go run main.go --> server start at 127.0.0.1:8800 
 
 #### CLI:
 
